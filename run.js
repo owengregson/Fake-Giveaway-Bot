@@ -2,26 +2,28 @@ const { spawn } = require("child_process");
 const dotenv = require("dotenv");
 const path = require("path");
 const fs = require("fs");
-const winston = require("winston");
+const Logger = require("./utils/logger");
 
 dotenv.config();
 
-const logConfiguration = {
-	transports: [
-		new winston.transports.Console(),
-		new winston.transports.File({ filename: "bot.log" }),
-	],
-	format: winston.format.combine(
-		winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
-		winston.format.printf(
-			(info) => `${info.timestamp} ${info.level}: ${info.message}`
-		)
-	),
-};
+const startTimestamp = new Date();
+const logFileName = `${startTimestamp
+	.toLocaleDateString("en-US", {
+		month: "2-digit",
+		day: "2-digit",
+		year: "numeric",
+	})
+	.replace(/\//g, "_")}_${startTimestamp
+	.toLocaleTimeString("en-US", {
+		hour12: false,
+		hour: "2-digit",
+		minute: "2-digit",
+	})
+	.replace(/:/g, "-")}.log`;
 
-const logger = winston.createLogger(logConfiguration);
+const logger = new Logger(logFileName);
 
-logger.info("Starting the Discord bot monitor...");
+logger.alert("Bot loading...");
 
 const modulesDir = path.join(__dirname, "modules");
 if (!fs.existsSync(modulesDir)) {
@@ -36,9 +38,9 @@ function startBot() {
 	botProcess.on("exit", (code, signal) => {
 		if (signal !== "SIGTERM" && signal !== "SIGINT") {
 			logger.error(
-				`Bot process exited with code ${code}. Restarting in 30 seconds...`
+				`Bot process exited with code ${code}. Restarting in 10 seconds...`
 			);
-			setTimeout(startBot, 30000);
+			setTimeout(startBot, 10000);
 		} else {
 			logger.info("Bot process was terminated. Exiting monitor...");
 			process.exit(0);
@@ -47,7 +49,7 @@ function startBot() {
 
 	botProcess.on("error", (err) => {
 		logger.error(`Failed to start bot.js: ${err.message}`);
-		setTimeout(startBot, 30000);
+		setTimeout(startBot, 10000);
 	});
 }
 

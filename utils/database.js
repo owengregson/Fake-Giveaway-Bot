@@ -1,12 +1,32 @@
 const Database = require("better-sqlite3");
 const path = require("path");
+const fs = require("fs");
 
 class DB {
-	constructor(dbName) {
-		this.dbPath = path.join(__dirname, `../${dbName}.db`);
+	constructor(guildId, dbName) {
+		const guildDir = path.join(__dirname, `../database/${guildId}`);
+		if (!fs.existsSync(guildDir)) {
+			fs.mkdirSync(guildDir, { recursive: true });
+		}
+		this.dbPath = path.join(guildDir, `${dbName}.db`);
 		this.db = new Database(this.dbPath);
 
-		console.log(`Connected to the ${dbName} SQLite database.`);
+		console.log(
+			`Connected to the ${dbName} SQLite database for guild ${guildId}.`
+		);
+	}
+
+	// Check if table exists, and if not, create it using the provided schema
+	ensureTable(tableName, schema) {
+		const tableExists = this.db
+			.prepare(
+				"SELECT name FROM sqlite_master WHERE type='table' AND name=?;"
+			)
+			.get(tableName);
+
+		if (!tableExists) {
+			this.createTable(tableName, schema);
+		}
 	}
 
 	createTable(tableName, columns) {
@@ -29,6 +49,8 @@ class DB {
 	}
 
 	update(tableName, data, condition) {
+		this.ensureTable(tableName);
+
 		const setStr = Object.keys(data)
 			.map((key) => `${key} = ?`)
 			.join(", ");
@@ -43,6 +65,8 @@ class DB {
 	}
 
 	delete(tableName, condition) {
+		this.ensureTable(tableName);
+
 		const conditionStr = Object.keys(condition)
 			.map((key) => `${key} = ?`)
 			.join(" AND ");
@@ -53,6 +77,8 @@ class DB {
 	}
 
 	deleteWhere(tableName, where) {
+		this.ensureTable(tableName);
+
 		const keys = Object.keys(where);
 		const conditions = keys
 			.map((key) => {
@@ -81,6 +107,8 @@ class DB {
 	}
 
 	get(tableName, condition) {
+		this.ensureTable(tableName);
+
 		const conditionStr = Object.keys(condition)
 			.map((key) => `${key} = ?`)
 			.join(" AND ");
@@ -91,6 +119,8 @@ class DB {
 	}
 
 	getAll(tableName) {
+		this.ensureTable(tableName);
+
 		const getAllSQL = `SELECT * FROM ${tableName}`;
 		return this.db.prepare(getAllSQL).all();
 	}

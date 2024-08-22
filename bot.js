@@ -1,20 +1,27 @@
 const { Client, GatewayIntentBits } = require("discord.js");
 const fs = require("fs");
 const path = require("path");
-const winston = require("winston");
+const { REST } = require("@discordjs/rest");
+const { Routes } = require("discord.js");
+const Logger = require("./utils/logger");
+require("dotenv").config();
 
-// Setup logging with winston
-const logger = winston.createLogger({
-	level: "info",
-	format: winston.format.combine(
-		winston.format.timestamp(),
-		winston.format.json()
-	),
-	transports: [
-		new winston.transports.Console(),
-		new winston.transports.File({ filename: "bot.log" }),
-	],
-});
+const startTimestamp = new Date();
+const logFileName = `${startTimestamp
+	.toLocaleDateString("en-US", {
+		month: "2-digit",
+		day: "2-digit",
+		year: "numeric",
+	})
+	.replace(/\//g, "_")}_${startTimestamp
+	.toLocaleTimeString("en-US", {
+		hour12: false,
+		hour: "2-digit",
+		minute: "2-digit",
+	})
+	.replace(/:/g, "-")}.log`;
+
+const logger = new Logger(logFileName);
 
 const client = new Client({
 	intents: [
@@ -27,33 +34,53 @@ const client = new Client({
 client.commands = [];
 client.modules = [];
 
-// Dynamically load all modules
 const modulesPath = path.join(__dirname, "modules");
 fs.readdirSync(modulesPath).forEach((file) => {
 	if (file.endsWith(".js")) {
 		const ModuleClass = require(path.join(modulesPath, file));
 		const moduleInstance = new ModuleClass(client);
 		client.modules.push(moduleInstance);
+
+		if (moduleInstance.registerCommands) {
+			moduleInstance.registerCommands();
+		}
 	}
 });
 
-// Register commands with Discord API
 client.once("ready", async () => {
 	try {
-		const commandsData = client.commands.map((command) => command.toJSON());
+		const commandsData = client.commands.map((command) => command);
 
-		await client.application.commands.set(commandsData);
+		const uniqueCommandsData = commandsData.filter(
+			(value, index, self) =>
+				index === self.findIndex((t) => t.name === value.name)
+		);
+
+		logger.info(
+			`Registering the following commands: ${JSON.stringify(
+				uniqueCommandsData
+			)}`
+		);
+
+		const rest = new REST({ version: "10" }).setToken(
+			process.env.DISCORD_BOT_TOKEN
+		);
+		await rest.put(Routes.applicationCommands(client.user.id), {
+			body: uniqueCommandsData,
+		});
+
 		logger.info("Slash commands registered successfully.");
-		logger.info(`Logged in as ${client.user.tag}`);
+		logger.alert(`Logged in as ${client.user.tag}!`);
 	} catch (error) {
 		logger.error(`Error registering slash commands: ${error.message}`);
 	}
 });
 
-// Handle interactions
 client.on("interactionCreate", async (interaction) => {
 	for (const module of client.modules) {
-		await module.handleInteraction(interaction);
+		if (module.handleInteraction) {
+			await module.handleInteraction(interaction);
+		}
 	}
 });
 

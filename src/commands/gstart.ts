@@ -42,6 +42,9 @@ export class GStartCommand extends Command {
         .addStringOption((o) =>
           o.setName('prize').setDescription('What is being given away').setRequired(true)
         )
+        .addStringOption((o) =>
+          o.setName('description').setDescription('Optional description for the giveaway').setRequired(false)
+        )
     );
   }
 
@@ -49,6 +52,7 @@ export class GStartCommand extends Command {
     const timeStr = interaction.options.getString('time', true);
     const winnersCount = interaction.options.getInteger('winners', true);
     const prize = interaction.options.getString('prize', true);
+    const description = interaction.options.getString('description') ?? undefined;
 
     const durationMs = ms(timeStr as StringValue);
     if (!durationMs || durationMs <= 0) {
@@ -64,6 +68,7 @@ export class GStartCommand extends Command {
       guildId: interaction.guildId!,
       channelId: interaction.channelId!,
       name: prize,
+      description,
       hostId: interaction.user.id,
       winnersCount,
       duration: timeStr,

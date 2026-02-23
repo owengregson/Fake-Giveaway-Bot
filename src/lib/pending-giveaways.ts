@@ -2,6 +2,7 @@ export interface PendingGiveaway {
   guildId: string;
   channelId: string;
   name: string;
+  description?: string;
   hostId: string;
   winnersCount: number;
   duration: string;

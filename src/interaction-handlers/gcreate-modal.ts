@@ -28,6 +28,7 @@ export class GCreateModalHandler extends InteractionHandler {
 
   public async run(interaction: ModalSubmitInteraction, data: { channelId: string }) {
     const prize = interaction.fields.getTextInputValue('prize');
+    const description = interaction.fields.getTextInputValue('description') || undefined;
     const durationStr = interaction.fields.getTextInputValue('duration');
     const winnersStr = interaction.fields.getTextInputValue('winners');
     const pingStr = interaction.fields.getTextInputValue('ping');
@@ -58,6 +59,7 @@ export class GCreateModalHandler extends InteractionHandler {
       guildId: interaction.guildId!,
       channelId: data.channelId,
       name: prize,
+      description,
       hostId: interaction.user.id,
       winnersCount,
       duration: durationStr.trim(),

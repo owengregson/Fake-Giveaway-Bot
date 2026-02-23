@@ -16,6 +16,7 @@ model Giveaway {
   channelId       String
   messageId       String   @unique
   name            String
+  description     String?
   hostId          String
   winnersCount    Int
   actualWinnerIds String[]

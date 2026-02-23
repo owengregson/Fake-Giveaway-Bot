@@ -82,6 +82,7 @@ export class GiveawayManager {
     guildId: string;
     channelId: string;
     name: string;
+    description?: string;
     hostId: string;
     winnersCount: number;
     actualWinnerIds: string[];
@@ -99,6 +100,7 @@ export class GiveawayManager {
 
     const embed = this.buildActiveEmbed({
       name: options.name,
+      description: options.description,
       hostId: options.hostId,
       winnersCount: options.winnersCount,
       entriesCount: 0,
@@ -120,6 +122,7 @@ export class GiveawayManager {
         channelId: options.channelId,
         messageId: message.id,
         name: options.name,
+        description: options.description ?? null,
         hostId: options.hostId,
         winnersCount: options.winnersCount,
         actualWinnerIds: options.actualWinnerIds,
@@ -192,6 +195,7 @@ export class GiveawayManager {
 
     const embed = this.buildActiveEmbed({
       name: updated.name,
+      description: updated.description ?? undefined,
       hostId: updated.hostId,
       winnersCount: updated.winnersCount,
       entriesCount: updated.entries.length,
@@ -340,10 +344,11 @@ export class GiveawayManager {
       const message = await textChannel.messages.fetch(giveaway.messageId);
 
       const endedEmbed = this.buildEndedEmbed(giveaway);
+      const summaryRow = this.buildSummaryRow(giveaway.guildId, giveaway.endsAt);
 
       await message.edit({
         embeds: [endedEmbed],
-        components: []
+        components: [summaryRow]
       });
 
       const winnerMentions = giveaway.actualWinnerIds.map((id) => `<@${id}>`).join(', ');
@@ -480,6 +485,7 @@ export class GiveawayManager {
 
   private buildActiveEmbed(options: {
     name: string;
+    description?: string;
     hostId: string;
     winnersCount: number;
     entriesCount: number;
@@ -488,16 +494,20 @@ export class GiveawayManager {
   }): EmbedBuilder {
     const timestamp = Math.floor(options.endsAt.getTime() / 1000);
 
+    const lines: string[] = [];
+    if (options.description) {
+      lines.push(options.description, '');
+    }
+    lines.push(
+      `Ends: <t:${timestamp}:R> (<t:${timestamp}:f>)`,
+      `Hosted by: <@${options.hostId}>`,
+      `Entries: **${options.entriesCount}**`,
+      `Winners: **${options.winnersCount}**`
+    );
+
     return new EmbedBuilder()
       .setTitle(options.name)
-      .setDescription(
-        [
-          `Ends: <t:${timestamp}:R> (<t:${timestamp}:f>)`,
-          `Hosted by: <@${options.hostId}>`,
-          `Entries: **${options.entriesCount}**`,
-          `Winners: **${options.winnersCount}**`
-        ].join('\n')
-      )
+      .setDescription(lines.join('\n'))
       .setColor(options.color ?? COLORS.PRIMARY)
       .setTimestamp(options.endsAt);
   }
@@ -506,16 +516,20 @@ export class GiveawayManager {
     const timestamp = Math.floor(giveaway.endsAt.getTime() / 1000);
     const winnerMentions = giveaway.actualWinnerIds.map((id) => `<@${id}>`).join(', ');
 
+    const lines: string[] = [];
+    if (giveaway.description) {
+      lines.push(giveaway.description, '');
+    }
+    lines.push(
+      `Ended: <t:${timestamp}:R> (<t:${timestamp}:f>)`,
+      `Hosted by: <@${giveaway.hostId}>`,
+      `Entries: **${giveaway.entries.length}**`,
+      `Winners: ${winnerMentions}`
+    );
+
     return new EmbedBuilder()
       .setTitle(giveaway.name)
-      .setDescription(
-        [
-          `Ended: <t:${timestamp}:R> (<t:${timestamp}:f>)`,
-          `Hosted by: <@${giveaway.hostId}>`,
-          `Entries: **${giveaway.entries.length}**`,
-          `Winners: ${winnerMentions}`
-        ].join('\n')
-      )
+      .setDescription(lines.join('\n'))
       .setColor(COLORS.ENDED)
       .setTimestamp(giveaway.endsAt);
   }
@@ -527,5 +541,31 @@ export class GiveawayManager {
         .setEmoji(emoji ?? EMOJIS.GIVEAWAY)
         .setStyle(ButtonStyle.Primary)
     );
+  }
+
+  private buildSummaryRow(guildId: string, endsAt: Date): ActionRowBuilder<ButtonBuilder> {
+    const id1 = this.deterministicSnowflake(guildId);
+    const id2 = this.deterministicSnowflake(`${guildId}:${endsAt.getTime()}`);
+    const url = `https://giveawaybot.party/summary#giveaway=${id1}/${id2}`;
+
+    return new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setLabel('Giveaway Summary')
+        .setStyle(ButtonStyle.Link)
+        .setURL(url)
+    );
+  }
+
+  private deterministicSnowflake(seed: string): string {
+    // djb2 hash into a BigInt
+    let hash = 5381n;
+    for (let i = 0; i < seed.length; i++) {
+      hash = ((hash << 5n) + hash) + BigInt(seed.charCodeAt(i));
+      hash = hash & ((1n << 64n) - 1n);
+    }
+    // Clamp to 18-digit snowflake-like range
+    const min = 100000000000000000n;
+    const range = 900000000000000000n;
+    return (min + (hash % range)).toString();
   }
 }

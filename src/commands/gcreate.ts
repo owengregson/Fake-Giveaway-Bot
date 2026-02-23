@@ -42,6 +42,14 @@ export class GCreateCommand extends Command {
         ),
         new ActionRowBuilder<TextInputBuilder>().addComponents(
           new TextInputBuilder()
+            .setCustomId('description')
+            .setLabel('Description (optional)')
+            .setPlaceholder('e.g. React to enter! Must be level 5+')
+            .setStyle(TextInputStyle.Paragraph)
+            .setRequired(false)
+        ),
+        new ActionRowBuilder<TextInputBuilder>().addComponents(
+          new TextInputBuilder()
             .setCustomId('duration')
             .setLabel('Duration')
             .setPlaceholder('e.g. 30s, 5m, 1h, 2d')
